@@ -1,0 +1,5 @@
+.env
+/log/*
+/postgres_data/*
+/data/*
+/config/*
