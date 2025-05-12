@@ -1,0 +1,67 @@
+name: Odoo CI/CD
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+    branches: [main, staging]
+  issues:
+    types: [opened, edited]
+
+jobs:
+  odoo-check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: odoo18c
+          POSTGRES_USER: odoo18c
+          POSTGRES_PASSWORD: 123456
+        ports:
+          - 5432:5432
+        options:
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsasl2-dev python3-dev libldap2-dev libssl-dev build-essential
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install -U pip setuptools wheel
+          pip install -r requirements.txt
+
+      - name: Lint code
+        run: |
+          pip install flake8
+          flake8 addons/ && flake8 odoo/addons/
+
+      - name: Run Odoo Tests
+        run: |
+          ./odoo-bin -d test_db --addons-path=addons --test-enable --stop-after-init --db-filter=test_db
+
+  # deploy:
+  #   needs: odoo-check
+  #   if: github.ref == 'refs/heads/main'
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v3
+
+  #     - name: Deploy to Production
+  #       run: |
+  #         echo "Deploying to production server..."
+  #         ssh odoo18@192.168.1.206 'cd /home/odoo18test2/product/odoo18 && git pull && systemctl restart odoo'
